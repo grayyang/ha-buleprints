@@ -1,0 +1,38 @@
+blueprint:
+  name: Link On/Off States for Multiple Entities
+  description: 'Linking the change of on/off state change between multiple entities.'
+  domain: automation
+  homeassistant:
+    min_version: 2022.5.0
+  input:
+    entities:
+      name: Entites
+      selector:
+        entity:
+          domain:
+            - switch
+            - light
+          multiple: true
+
+mode: single
+
+variables:
+  linking_entities: !input 'entities'
+
+trigger:
+  - platform: state
+    entity_id: !input 'entities'
+    to:
+      - "on"
+      - "off"
+
+condition:
+  - condition: template
+    value_template: '{{ trigger.to_state.state != trigger.from_state.state }}'
+  - condition: template
+    value_template: '{{ trigger.to_state.context.parent_id is none or (trigger.to_state.context.id != this.context.id and trigger.to_state.context.parent_id != this.context.id) }}'
+
+action:
+  - service: homeassistant.turn_{{ trigger.to_state.state }}
+    target:
+      entity_id: '{{ expand(linking_entities) | selectattr("entity_id", "!=", trigger.entity_id) | map(attribute="entity_id") | list }}'
